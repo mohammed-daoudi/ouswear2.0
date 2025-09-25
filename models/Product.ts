@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import type { Product as ProductType, ProductVariant } from '@/lib/types';
+import { mockDb } from '@/lib/mock-db';
 
 const VariantSchema = new Schema({
   name: { type: String, required: true }, // e.g., "Color", "Size"
@@ -75,7 +76,24 @@ ProductSchema.pre('save', function(next) {
   next();
 });
 
-const Product: Model<ProductDocument> = mongoose.models.Product || mongoose.model<ProductDocument>('Product', ProductSchema);
+// Use mock database in development when MongoDB is not available
+const USE_MOCK_DB = !process.env.MONGODB_URI || process.env.NODE_ENV === 'development';
+
+let Product: any;
+
+if (USE_MOCK_DB) {
+  // Use mock database
+  Product = {
+    find: (query?: any) => mockDb.getModel('Product').find(query),
+    findOne: (query: any) => mockDb.getModel('Product').findOne(query),
+    findById: (id: string) => mockDb.getModel('Product').findById(id),
+    create: (data: any) => mockDb.getModel('Product').create(data),
+    countDocuments: (query?: any) => mockDb.getModel('Product').countDocuments(query),
+  };
+} else {
+  // Use MongoDB
+  Product = mongoose.models.Product || mongoose.model<ProductDocument>('Product', ProductSchema);
+}
 
 export default Product;
 export type { ProductDocument };

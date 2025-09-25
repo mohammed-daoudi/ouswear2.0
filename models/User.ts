@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import type { User as UserType, Address } from '@/lib/types';
+import { mockDb } from '@/lib/mock-db';
 
 const AddressSchema = new Schema({
   name: { type: String, required: true },
@@ -73,7 +74,24 @@ UserSchema.methods.toJSON = function() {
   return userObject;
 };
 
-const User: Model<UserDocument> = mongoose.models.User || mongoose.model<UserDocument>('User', UserSchema);
+// Use mock database in development when MongoDB is not available
+const USE_MOCK_DB = !process.env.MONGODB_URI || process.env.NODE_ENV === 'development';
+
+let User: any;
+
+if (USE_MOCK_DB) {
+  // Use mock database
+  User = {
+    find: (query?: any) => mockDb.getModel('User').find(query),
+    findOne: (query: any) => mockDb.getModel('User').findOne(query),
+    findById: (id: string) => mockDb.getModel('User').findById(id),
+    create: (data: any) => mockDb.getModel('User').create(data),
+    countDocuments: (query?: any) => mockDb.getModel('User').countDocuments(query),
+  };
+} else {
+  // Use MongoDB
+  User = mongoose.models.User || mongoose.model<UserDocument>('User', UserSchema);
+}
 
 export default User;
 export type { UserDocument };

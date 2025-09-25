@@ -1,10 +1,14 @@
 import mongoose from 'mongoose';
+import { mockDb } from './mock-db';
 
-if (!process.env.MONGODB_URI) {
+// Check if we should use mock database for development
+const USE_MOCK_DB = !process.env.MONGODB_URI || process.env.NODE_ENV === 'development';
+
+if (!USE_MOCK_DB && !process.env.MONGODB_URI) {
   throw new Error('Please add your MONGODB_URI to .env.local');
 }
 
-const MONGODB_URI: string = process.env.MONGODB_URI;
+const MONGODB_URI: string = process.env.MONGODB_URI || '';
 
 interface GlobalMongoose {
   conn: typeof mongoose | null;
@@ -23,6 +27,13 @@ if (!cached) {
 }
 
 export async function connectDB(): Promise<typeof mongoose> {
+  // Use mock database in development when MongoDB is not available
+  if (USE_MOCK_DB) {
+    await mockDb.connect();
+    // Return a mock mongoose-like object for compatibility
+    return mongoose as typeof mongoose;
+  }
+
   if (cached!.conn) {
     return cached!.conn;
   }
@@ -48,6 +59,11 @@ export async function connectDB(): Promise<typeof mongoose> {
 
 // Close connection (useful for serverless functions)
 export async function disconnectDB(): Promise<void> {
+  if (USE_MOCK_DB) {
+    await mockDb.disconnect();
+    return;
+  }
+  
   if (cached?.conn) {
     await cached.conn.disconnect();
     cached.conn = null;
